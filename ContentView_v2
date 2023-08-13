@@ -1,0 +1,948 @@
+import SwiftUI
+import Combine
+import UIKit
+import SDWebImageSwiftUI
+import CoreLocation
+import WebKit
+import PythonKit
+
+struct SatelliteImage: Identifiable {
+    let id: UUID = UUID()
+    let url: String
+    let title: String
+    let description: String
+}
+
+class ImageRepository: ObservableObject {
+    
+    @Published var satelliteImages: [String: [SatelliteImage]] = [:] // Dictionary for different sections
+    
+    init() {
+        fetchImages()
+    }
+        
+    func fetchImages() {
+        Task.init {
+            do {
+                try await self.fetchImagesAsync()
+            } catch {
+                print(error)
+            }
+        }
+    }
+    
+    func asyncRemoveImage(forKey key: String) async {
+        await withCheckedContinuation { continuation in
+            SDImageCache.shared.removeImage(forKey: key) {
+                continuation.resume(returning: ())
+            }
+        }
+    }
+    
+    func fetchImagesAsync() async throws {
+        // URLs of the images
+        let urls1 = [
+            "https://mausam.imd.gov.in/Satellite/rswmo_mp.jpg",
+            "https://mausam.imd.gov.in/Satellite/rs_olr.jpg",
+            "https://mausam.imd.gov.in/Satellite/rswmo_vis.jpg",
+            "https://nwp.imd.gov.in/wrf/WRF3km-03-RAIN_24.png",
+            "https://mausam.imd.gov.in/Satellite/3Dasiasec_wv.jpg",
+            "https://img.nsmc.org.cn/CLOUDIMAGE/FY2H/GLL/FY2H_ETV_SEC_GLB.jpg"
+        ]
+        
+        let urls2 = [
+            "https://mausam.imd.gov.in/Radar/sri_delhi.gif",
+            "https://mausam.imd.gov.in/Radar/pac_delhi.gif",
+            "https://mausam.imd.gov.in/Radar/caz_delhi.gif",
+            "https://mausam.imd.gov.in/Radar/ppi_delhi.gif"
+           
+        ]
+        
+        let urls3 = [
+            "https://mausam.imd.gov.in/Radar/caz_vrv.gif",
+            "https://mausam.imd.gov.in/Radar/sri_vrv.gif",
+            "https://mausam.imd.gov.in/Radar/pac_vrv.gif"
+        ]
+        
+        let urls4 = [
+            "https://mausam.imd.gov.in/Satellite/rs_olr.jpg",
+            "https://mausam.imd.gov.in/Satellite/rs_imr.jpg",
+            "https://mausam.imd.gov.in/Satellite/rs_hem.jpg"
+        ]
+        
+        let urls5 = [
+            "http://satellite.imd.gov.in/imgr/swsec_vis.jpg",
+            "http://satellite.imd.gov.in/imgr/swsec_ir1.jpg",
+            "http://satellite.imd.gov.in/imgr/swsec_mp.jpg"
+        ]
+        
+        
+        // Remove images from the cache asynchronously
+        for url in urls1 + urls2 {
+                    await asyncRemoveImage(forKey: url)
+                }
+        
+        let previousImages = [
+            SatelliteImage(url: urls1[0], title: "Day Microphysics", description: "Day Microphysics RGB combines the data of 3 channels or channel differences into one image, helpful for cloud detection."),
+            SatelliteImage(url: urls1[1], title: "Outgoing Longwave Radiation", description: "Outgoing Longwave Radiation (OLR) maps depict the top-of-atmosphere energy emitted by the Earth system in the 4-50 µm band."),
+            SatelliteImage(url: urls1[2], title: "Visible Spectrum", description: "This specific image shows precipitation forecast for the next 3 hours."),
+            
+            SatelliteImage(url: urls1[3], title: "Infrared Channel 10.8µm", description: "These images display cloud-top temperatures or equivalent blackbody brightness temperature in Kelvin."),
+            SatelliteImage(url: urls1[4], title: "Water Vapour", description: "Mesoscale models are weather prediction models that can predict highly detailed weather phenomena. This specific image shows precipitation forecast for the next 3 hours."),
+            SatelliteImage(url: urls1[5], title: "Water Vapour", description: "Weather prediction models that can predict highly detailed weather phenomena. This specific image shows precipitation forecast for the next 20 Minutes.")
+        ]
+        
+        let nwsecImages = [
+            SatelliteImage(url: urls2[0], title: "Storm Relative Intensity", description: "The Storm Relative Intensity Map shows the intensity of precipitation relative to a moving storm."),
+            SatelliteImage(url: urls2[1], title: "Precipitation Accumulation", description: "Precipitation Accumulation maps display the cumulative rainfall over a certain period."),
+            SatelliteImage(url: urls2[2], title: "Constant Altitude Plan Position Indicator", description: "This radar image captures the precipitation at a fixed altitude. It helps to analyze the spatial distribution of precipitation at that altitude."),
+            SatelliteImage(url: urls2[3], title: "Plan Position Indicator", description: "Plan Position Indicator is the most common type of radar display. The radar antenna rotates 360 degrees around a fixed point, mapping the surrounding area.")
+        ]
+        
+        let nesacImages = [
+            SatelliteImage(url: urls3[0], title: "Velocity Radial Velocity", description: "Deals with the velocity at which precipitation or other detected particles are moving towards or away from the radar. This is an essential tool for determining wind patterns, including rotation in thunderstorms that could indicate a tornado."),
+            SatelliteImage(url: urls3[1], title: "Plan Position Indicato", description: " It's the most common type of radar display and represents a 2D horizontal view of radar returns. The center of the PPI image typically represents the location of the radar, and it shows the radial return data in a 360-degree sweep around the radar."),
+            SatelliteImage(url: urls3[2], title: "PPZ ", description: "Refers to a vertical cross-section or another form of vertical display, allowing meteorologists to see the structure of storms from the side.While PPI shows horizontal views, this does vertical views.")
+        ]
+        
+        
+        let sesecImages = [
+            SatelliteImage(url: urls4[0], title: "Global OLR", description: " OLR refers to the energy emitted by the Earth back into space. This energy is mainly in the form of infrared radiation, which is a measure of the Earth's heat."),
+            SatelliteImage(url: urls4[1], title: "Multispectral Rainfall", description: "Multispectral imagery involves capturing image data at specific frequencies across the electromagnetic spectrum, including both visible light and infrared. In the context of rainfall, multispectral sensors can differentiate between rain, clouds, land, and other features."),
+            SatelliteImage(url: urls4[2], title: "Hydro Estimator Precipitation", description: "The Hydro Estimator is a satellite-based method for estimating rainfall over large regions. It provides meteorologists and hydrologists with real-time data about rainfall, which can be used for flood forecasts, agricultural insights, and more.")
+        ]
+        
+        let swsecImages = [
+            SatelliteImage(url: urls5[0], title: "SWSEC Visual Image", description: "This is a visual image captured by the SWSEC satellite."),
+            SatelliteImage(url: urls5[1], title: "SWSEC Infrared Image", description: "This is an infrared image captured by the SWSEC satellite."),
+            SatelliteImage(url: urls5[2], title: "SWSEC Microphysics", description: "This image displays some kind of microphysical data from the SWSEC satellite.")
+        ]
+        
+        DispatchQueue.main.async {
+            self.satelliteImages = [
+                "1. Indian Sub-Continent Images": previousImages,
+                "2. Delhi Radar Data": nwsecImages,
+                "3. Mumbai Radar Data": nesacImages,
+                "4. Global View": sesecImages
+            ]
+        }
+
+    }
+}
+
+
+class QueryManager {
+    let API_TOKEN = "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" // Replace this with your actual token
+    let API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-xxl"
+    
+    func query(input: String, completion: @escaping (String?) -> Void) {
+        guard let url = URL(string: API_URL) else {
+            completion(nil)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(API_TOKEN)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payload: [String: Any] = ["inputs": input]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil,
+                  let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                  let results = json["results"] as? [[String: Any]],
+                  let generatedText = results.first?["generated_text"] as? String else {
+                completion(nil)
+                return
+            }
+            let responseString = String(data: data, encoding: .utf8)
+                        print("Response: \(responseString ?? "No response")")
+            
+            completion(generatedText)
+        }
+        
+        task.resume()
+    }
+}
+
+struct SunARView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> ViewController {
+        return ViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: ViewController, context: Context) {
+        // Update if needed when SwiftUI view updates, though for this example we won't need to do anything here.
+    }
+}
+
+struct ChatView: View {
+    
+    @State private var messages: [String] = []
+    @State private var userInput: String = ""
+    private let queryManager = QueryManager()
+    
+    var body: some View {
+        VStack {
+            List(messages, id: \.self) { message in
+                Text(message)
+            }
+            
+            HStack {
+                TextField("Enter message...", text: $userInput)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                Button("Send") {
+                    processUserInput(userInput)
+                    userInput = ""
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Chat")
+    }
+    
+    func processUserInput(_ userInput: String) {
+        queryManager.query(input: userInput) { response in
+            DispatchQueue.main.async {
+                if let response = response {
+                    messages.append("User: \(userInput)")
+                    messages.append("AI: \(response)")
+                } else {
+                    messages.append("I'm sorry, I didn't understand that.")
+                }
+            }
+        }
+    }
+}
+struct SunPathView: View {
+    @ObservedObject var locationManager: LocationManager
+    
+    var sunDetails: [(time: Date, altitude: Double, azimuth: Double)] {
+        guard let latitude = locationManager.latitude, let longitude = locationManager.longitude else { return [] }
+        // Adjusted the location access here
+        
+        let hours = Array(0...23)
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        let times = hours.map { Calendar.current.date(byAdding: .hour, value: $0, to: today)! }
+        
+        return times.map {
+            let sunDataForTime = SunCalculation.sun(date: $0, latitude: latitude, longitude: longitude)
+            return (time: $0, altitude: sunDataForTime.altitude, azimuth: sunDataForTime.azimuth)
+        }
+
+        
+    }
+    
+    var body: some View {
+        VStack {
+            // Table of sun positions
+            List {
+                ForEach(sunDetails, id: \.time) { detail in
+                    HStack {
+                        Text("\(detail.time, formatter: DateFormatter.shortTime)")
+                        Spacer()
+                        Text("Altitude: \(detail.altitude, specifier: "%.2f")°")
+                        Spacer()
+                        Text("Azimuth: \(detail.azimuth, specifier: "%.2f")°")
+                    }
+                }
+            }
+            .padding()
+            
+            // Visualization of the sun path
+            // ... (Your ZStack and drawing code goes here)
+            
+        }
+        .onAppear {
+            self.locationManager.requestLocation()
+        }
+    }
+}
+
+
+extension DateFormatter {
+    static let shortTime: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }()
+}
+
+
+
+struct WebView: UIViewRepresentable {
+    @Binding var results: String
+    var locationManager: LocationManager
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.navigationDelegate = context.coordinator
+        return webView
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        let lat = locationManager.latitude
+        let lon = locationManager.longitude
+        let js = """
+        var times = SunCalc.getTimes(new Date(), \(String(describing: lat)), \(String(describing: lon)));
+        var sunrise = times.sunrise;
+        var sunset = times.sunset;
+        sunrise + ' - ' + sunset;
+        """
+        if let url = Bundle.main.url(forResource: "index", withExtension: "html") {
+            uiView.load(URLRequest(url: url))
+            uiView.evaluateJavaScript(js) { (result, error) in
+                if let resultString = result as? String {
+                    results = resultString
+                }
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: WebView
+
+        init(_ parent: WebView) {
+            self.parent = parent
+        }
+    }
+}
+
+struct ContentView: View {
+    
+    @StateObject private var weatherManager = WeatherManager() // Assuming WeatherManager is initializable without parameters
+    
+    
+    @StateObject private var imageRepository = ImageRepository()
+    
+    @StateObject private var locationManager = LocationManager()
+    
+    @State private var cancellables = Set<AnyCancellable>()
+    
+    @State private var selectedSatelliteImage: SatelliteImage?
+    
+    @State private var showSatelliteDetail = false
+    
+    var gifUrls: [String] = [
+        "https://mausam.imd.gov.in/Satellite/Converted/IR1.gif",
+        "https://mausam.imd.gov.in/Satellite/Converted/VIS.gif",
+        "https://mausam.imd.gov.in/Satellite/Converted/WV.gif"
+    ]
+
+    
+    let colors: [Color] = [ .blue, .yellow, .pink, .red, .gray ]
+    
+    @State private var showWeatherView: Bool = false
+    @State private var userLocation: CLLocationCoordinate2D?
+    
+    
+    
+    
+    var body: some View {
+        TabView {
+            NavigationView {
+                    VStack {
+                        ChatView()
+                    }
+                    .tabItem {
+                        Image(systemName: "network")
+                        Text("Chat")
+                    }
+                }
+            
+        
+    
+            
+            // Create a tab item for Satellite View
+            NavigationView {
+                            ScrollView {
+                                VStack {
+                                    ForEach(imageRepository.satelliteImages.keys.sorted(), id: \.self) { key in
+                                        VStack(alignment: .leading) {
+                                            Text(key)
+                                                .font(.title2)
+                                                .fontWeight(.bold)
+                                                .padding(.leading, 15)
+                                                .padding(.top, 5)
+
+                                            ScrollView(.horizontal, showsIndicators: false) {
+                                                HStack(alignment: .top, spacing: 10) {
+                                                    ForEach(imageRepository.satelliteImages[key]!, id: \.url) { image in
+                                                        Button(action: {
+                                                            self.selectedSatelliteImage = image
+                                                            self.showSatelliteDetail = true
+                                                        }) {
+                                                            SatelliteRow(image: image, colors: colors)
+                                                        }
+                                                    }
+                                                }
+                                                .frame(height: 450)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .sheet(isPresented: $showSatelliteDetail) {
+                                if let selectedImage = selectedSatelliteImage {
+                                    SatelliteDetailSheet(image: selectedImage)
+                                }
+                            }
+                        }
+                        .tabItem {
+                            Image(systemName: "network")
+                            Text("Satellite View")
+                        }
+            NavigationView {
+                    AnimatedImagesView()
+                }
+                .tabItem {
+                    Image(systemName: "wind.circle")
+                    Text("Air Quality")
+                }
+            
+            
+            NavigationView {
+                   SunARView()  // This is the SwiftUI wrapper around the ARKit view controller
+                       .edgesIgnoringSafeArea(.all)  // Ensure it uses the full available screen space
+                       .navigationBarTitle("Sun Position AR", displayMode: .inline)
+               }
+               .tabItem {
+                   Image(systemName: "location.north.fill")  // You can choose a more appropriate icon if desired
+                   Text("Sun AR")
+               }
+            
+            NavigationView {
+                SunPathView(locationManager: locationManager)
+                    .navigationBarTitle("Sun Path", displayMode: .inline)
+                    .onAppear {  // Moved .onAppear here
+                        // Check if the permission hasn't been determined yet
+                        if self.locationManager.manager.authorizationStatus == .notDetermined {
+                            self.locationManager.requestLocation()
+                        }
+                    }
+            }
+            .tabItem {
+                Image(systemName: "sun.max.fill")
+                Text("Sun Path")
+            }
+            
+            
+            
+            NavigationView {
+                ScrollView {
+                    VStack {
+                        VStack(alignment: .leading) {
+                            Text("Indian Sub-Continent")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.leading, 15)
+                                .padding(.all, 5)
+                            
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(gifUrls, id: \.self) { gifUrl in
+                                    NavigationLink(destination: GifDetailSheet(gifUrl: gifUrl)) {
+                                        GifRow(gifUrl: gifUrl, colors: colors)
+                                    }
+                                }
+                            }
+                            .padding(.bottom, 20)
+                        }
+                    }
+                }
+                .padding(.all)
+                .navigationTitle("Animations")
+            }
+            .tabItem {
+                Image(systemName: "waveform.path.ecg")
+                Text("Animations")
+            }
+            .padding([.leading, .bottom, .trailing, .horizontal], 0.8)
+            .navigationViewStyle(.stack)
+            
+        }
+    }
+    
+    struct WebView: UIViewRepresentable {
+        let url: URL
+        
+        func makeUIView(context: Context) -> WKWebView {
+            let webView = WKWebView()
+            webView.load(URLRequest(url: url))
+            return webView
+        }
+        
+        func updateUIView(_ uiView: WKWebView, context: Context) {
+            // No update code needed.
+        }
+    }
+    
+    struct GifRow: View {
+        @State private var showShareSheet = false
+        @State private var showDetailSheet = false
+        
+        var gifUrl: String
+        @State private var color: Color
+        let colors: [Color]
+        let timer = Timer.publish(every: 1.9, on: .main, in: .common).autoconnect()
+
+        init(gifUrl: String, colors: [Color]) {
+            self.gifUrl = gifUrl
+            self._color = State(initialValue: colors.randomElement()!)
+            self.colors = colors
+        }
+
+        var body: some View {
+            VStack {
+                Button(action: {
+                    self.showDetailSheet.toggle()
+                }) {
+                    AnimatedImage(url: URL(string: gifUrl))
+                        .resizable()
+                        .indicator(.activity)
+                        .frame(width: 350, height: 350)
+                        .background(Color.black.opacity(0.9))
+                        .cornerRadius(10)
+                        .padding([.top, .bottom, .horizontal])
+                        .background(color.opacity(0.6))
+                        .cornerRadius(30)
+                        .padding([.top, .horizontal, .bottom])
+                        .onReceive(timer) { _ in
+                            withAnimation {
+                                var newColor: Color
+                                repeat {
+                                    newColor = colors.randomElement()!
+                                } while newColor == color
+                                self.color = newColor
+                            }
+                        }
+                }
+                .sheet(isPresented: $showDetailSheet) {
+                    GifDetailSheet(gifUrl: gifUrl)
+                }
+            }
+            .background(color.opacity(0.6))
+            .cornerRadius(30)
+            .padding([.top, .horizontal, .bottom])
+        }
+    }
+
+    // For GifDetailSheet:
+    struct GifDetailSheet: View {
+        var gifUrl: String
+        @State private var showShareSheet = false
+
+        @State private var cumulativeScale: CGFloat = 1.0
+        @State private var cumulativeDrag: CGSize = CGSize.zero
+        @GestureState private var magnificationState = CGFloat(1.0)
+        @GestureState private var translationState = CGSize.zero
+
+        var body: some View {
+            VStack(spacing: 20) {
+                Text("GIF Detail")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.leading, 15)
+                    .padding(.all, 5)
+                
+                AnimatedImage(url: URL(string: gifUrl))
+                    .resizable()
+                    .indicator(.activity)
+                    .frame(width: 350, height: 350)
+                    .background(Color.black.opacity(0.9))
+                    .padding([.top, .bottom, .horizontal])
+                    .cornerRadius(30)
+                    .padding([.top, .horizontal, .bottom])
+                    .scaleEffect(cumulativeScale * magnificationState)
+                    .offset(x: cumulativeDrag.width + translationState.width, y: cumulativeDrag.height + translationState.height)
+                    .gesture(
+                        MagnificationGesture()
+                            .updating($magnificationState) { currentState, gestureState, _ in
+                                gestureState = currentState
+                            }
+                            .onEnded { value in
+                                self.cumulativeScale *= value
+                            }
+                            .simultaneously(with:
+                                DragGesture()
+                                    .updating($translationState) { value, state, _ in
+                                        state = value.translation
+                                    }
+                                    .onEnded { value in
+                                        self.cumulativeDrag = CGSize(width: self.cumulativeDrag.width + value.translation.width, height: self.cumulativeDrag.height + value.translation.height)
+                                    }
+                            )
+                    )
+                    .clipped()
+                    
+                // You can add GIF description here
+
+                Button(action: {
+                    self.showShareSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "paperplane")
+                    }
+                    .padding()
+                    .foregroundColor(.white)
+            
+                    .cornerRadius(8)
+                }
+                .sheet(isPresented: $showShareSheet) {
+                    ShareSheet(items: [gifUrl])
+                }
+            }
+            .padding()
+            .background(Color.black.opacity(0.7))
+        }
+    }
+
+
+
+    
+    
+    
+    class SO2GasImagesLoader: ObservableObject {
+        @Published var images: [UIImage] = []
+        var cancellables = Set<AnyCancellable>()
+        
+        // Removed loadImages() call from init
+        init() { }
+        
+        // Function to start loading images
+        func startLoading() {
+            loadImages()
+        }
+        
+        private func loadImages() {
+            let imageUrls = (2...72).map { index -> URL in
+                return URL(string: "https://ews.tropmet.res.in/mumbai/data/mumbai/\(index).png?time=15:04:47")!
+            }
+            
+            imageUrls.publisher
+                .flatMap { url in
+                    URLSession.shared.dataTaskPublisher(for: url)
+                        .map { UIImage(data: $0.data) }
+                        .replaceError(with: nil)
+                }
+                .compactMap { $0 }
+                .collect()
+                .receive(on: DispatchQueue.main)
+                .sink(receiveCompletion: { _ in }, receiveValue: { self.images = $0 })
+                .store(in: &cancellables)
+        }
+    }
+
+    struct AnimatedImagesView: View {
+        @StateObject var imageLoader = SO2GasImagesLoader()
+        @State private var currentImageIndex: Double = 0
+        @State private var isPlaying: Bool = true
+        let timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+        
+        let timeIntervals = Array(stride(from: 0, through: 72, by: 6))
+        
+        var body: some View {
+            VStack {
+                Text("Mumbai Air Quality and Wind Direction")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.leading, 15)
+                    .padding(.all, 5)
+                    .multilineTextAlignment(.center)
+                
+                Spacer()
+                
+                Image(uiImage: imageLoader.images.isEmpty ? UIImage() : imageLoader.images[Int(currentImageIndex)])
+                    .resizable()
+                    .padding(.all)
+                    .aspectRatio(contentMode: .fit)
+                    .onReceive(timer) { _ in
+                        if isPlaying && !imageLoader.images.isEmpty {
+                            currentImageIndex = (currentImageIndex + 1).truncatingRemainder(dividingBy: Double(imageLoader.images.count))
+                        }
+                    }
+                    .onAppear {
+                        imageLoader.startLoading()
+                    }
+                
+                Spacer()
+                
+                
+                HStack {
+                    ForEach(timeIntervals, id: \.self) { interval in
+                        Text("\(interval)H")
+                            .font(.footnote)
+                        
+                            .fontWeight(.semibold)
+                           
+                            .multilineTextAlignment(.center)
+            
+                            .frame(maxWidth: .infinity)
+                            
+                    }
+                }
+                
+                Slider(value: $currentImageIndex.animation(.linear),
+                       in: 00...71,
+                       step: 1)
+                
+                Button(action: {
+                                isPlaying.toggle()
+                            }) {
+                                Image(systemName: isPlaying ? "pause.circle" : "play.circle")
+                                    .resizable()
+                                    .frame(width: 35, height: 35)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.all)
+            }
+        }
+    }
+
+
+    
+    struct SatelliteRow: View {
+        @State private var showShareSheet = false
+        @State private var showDetailSheet = false
+        @State private var shareImage: UIImage?
+
+        var image: SatelliteImage
+        @State private var color: Color
+        let colors: [Color]
+        let timer = Timer.publish(every: 1.9, on: .main, in: .common).autoconnect()
+
+        init(image: SatelliteImage, colors: [Color]) {
+            self.image = image
+            self.colors = colors
+            _color = State(initialValue: colors.randomElement()!)
+        }
+
+        func fetchImage(from url: String) {
+            if let imageUrl = URL(string: url) {
+                DispatchQueue.global().async {
+                    if let data = try? Data(contentsOf: imageUrl) {
+                        DispatchQueue.main.async {
+                            self.shareImage = UIImage(data: data)
+                        }
+                    }
+                }
+            }
+        }
+
+        var body: some View {
+            VStack {
+                Button(action: {
+                    self.showDetailSheet.toggle()
+                }) {
+                    WebImage(url: URL(string: image.url))
+                        .resizable()
+                        .indicator(.activity)
+                        .scaledToFit()
+                        .background(Color.black.opacity(0.9))
+                        .cornerRadius(10)
+                        .padding([.top, .bottom, .horizontal])
+                        .background(color.opacity(0.6))
+                        .cornerRadius(30)
+                        .padding([.top, .horizontal, .bottom])
+                        .onReceive(timer) { _ in
+                            withAnimation {
+                                var newColor: Color
+                                repeat {
+                                    newColor = colors.randomElement()!
+                                } while newColor == color
+                                self.color = newColor
+                            }
+                        }
+                }
+                .sheet(isPresented: $showDetailSheet) {
+                    SatelliteDetailSheet(image: image)
+                }
+
+                HStack {
+                    Text(image.title)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.black)
+                        .multilineTextAlignment(.center)
+                        .padding([.all])
+                    
+                }
+            }
+            .background(color.opacity(0.6))
+            .cornerRadius(30)
+            .padding([.top, .horizontal, .bottom])
+            .onReceive(timer) { _ in
+                withAnimation {
+                    var newColor: Color
+                    repeat {
+                        newColor = colors.randomElement()!
+                    } while newColor == color
+                    self.color = newColor
+                }
+            }
+        }
+    }
+
+    struct SatelliteDetailSheet: View {
+        var image: SatelliteImage
+
+        @State private var showShareSheet = false
+        @State private var cumulativeScale: CGFloat = 1.0
+        @State private var cumulativeDrag: CGSize = CGSize.zero
+        @GestureState private var magnificationState = CGFloat(1.0)
+        @GestureState private var translationState = CGSize.zero
+
+        var body: some View {
+            VStack(spacing: 20) {
+                Text(image.title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.leading, 15)
+                    .padding(.all, 5)
+                
+                WebImage(url: URL(string: image.url))
+                    .resizable()
+                    .indicator(.activity)
+                    .scaledToFit()
+                    .background(Color.black.opacity(0.9))
+                    .cornerRadius(10)
+                    .padding()
+                    .scaleEffect(cumulativeScale * magnificationState)
+                    .offset(x: cumulativeDrag.width + translationState.width, y: cumulativeDrag.height + translationState.height)
+                    .gesture(
+                        MagnificationGesture()
+                            .updating($magnificationState) { currentState, gestureState, _ in
+                                gestureState = currentState
+                            }
+                            .onEnded { value in
+                                self.cumulativeScale *= value
+                            }
+                            .simultaneously(with:
+                                DragGesture()
+                                    .updating($translationState) { value, state, _ in
+                                        state = value.translation
+                                    }
+                                    .onEnded { value in
+                                        self.cumulativeDrag = CGSize(width: self.cumulativeDrag.width + value.translation.width, height: self.cumulativeDrag.height + value.translation.height)
+                                    }
+                            )
+                    )
+                    .clipped()
+                
+                Text(image.description)
+                    .padding()
+                
+                Button(action: {
+                    self.showShareSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "paperplane")
+                    }
+                    .padding()
+                    .foregroundColor(.white)
+                
+                    .cornerRadius(8)
+                }
+                .sheet(isPresented: $showShareSheet) {
+                    ShareSheet(items: [image.url, image.description])
+                }
+            }
+            .padding()
+            .background(Color.black.opacity(0.7))
+        }
+    }
+
+
+
+
+
+    
+    
+    
+    struct DetailView: View {
+        var imageUrl: String
+        var imageDescription: String // Description of the image
+        
+        @State private var cumulativeScale: CGFloat = 1.0
+        @State private var cumulativeDrag: CGSize = CGSize.zero
+        @GestureState private var magnificationState = CGFloat(1.0) // scale state using GestureState
+        @GestureState private var translationState = CGSize.zero // offset state using GestureState
+        @State private var showInfo = false // State variable to control the info view visibility
+        
+        var body: some View {
+            ZStack {
+                Color.black.ignoresSafeArea()
+                WebImage(url: URL(string: imageUrl))
+                    .resizable()
+                    .indicator(.activity) // Show activity indicator while loading
+                    .scaledToFit()
+                    .background(Color.black.opacity(0.7))
+                    .cornerRadius(10)
+                    .padding()
+                    .scaleEffect(cumulativeScale * magnificationState) // Apply the scale effect
+                    .offset(x: cumulativeDrag.width + translationState.width, y: cumulativeDrag.height + translationState.height) // Apply the offset for panning
+                    .gesture(
+                        // Add the MagnificationGesture for pinch-to-zoom
+                        MagnificationGesture()
+                            .updating($magnificationState) { currentState, gestureState, _ in
+                                gestureState = currentState
+                            }
+                            .onEnded { value in
+                                self.cumulativeScale *= value
+                            }
+                            .simultaneously(with: // Add the DragGesture for panning
+                                            DragGesture()
+                                .updating($translationState) { value, state, _ in
+                                    state = value.translation
+                                }
+                                .onEnded { value in
+                                    self.cumulativeDrag = CGSize(width: self.cumulativeDrag.width + value.translation.width, height: self.cumulativeDrag.height + value.translation.height)
+                                }
+                                           )
+                    )
+                    .overlay( // Add the overlay
+                        Button(action: { showInfo.toggle() }) {
+                            Image(systemName: "info.square.fill")
+                                .font(.largeTitle)
+                                .foregroundColor(.black)
+                                .padding()
+                        },
+                        alignment: .topTrailing
+                    )
+                    .alert(isPresented: $showInfo) {
+                        Alert(title: Text("Image Information"), message: Text(imageDescription))
+                    }
+            }
+        }
+    }
+    
+    struct ShareSheet: UIViewControllerRepresentable {
+        
+        var items: [Any]
+        var excludedActivityTypes: [UIActivity.ActivityType]? = nil
+
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+            controller.excludedActivityTypes = excludedActivityTypes
+            return controller
+        }
+
+        func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+            // Nothing to update here
+        }
+    }
+
+    
+    
+    struct ContentView_Previews: PreviewProvider {
+        static var previews: some View {
+            ContentView()
+        }
+    }
+}
