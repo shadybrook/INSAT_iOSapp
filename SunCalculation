@@ -1,0 +1,60 @@
+//
+//  SunCalculation.swift
+//  INSAT_iOSappV2
+//
+//  Created by Chintan Dedhia on 10/08/23.
+//
+
+import Foundation
+
+class SunCalculation {
+
+    static func dateFromJulianDay(_ julianDay: Double) -> Date {
+        let unixTime = (julianDay - 2440587.5) * 86400.0
+        return Date(timeIntervalSince1970: unixTime)
+    }
+
+    static func julianDayFromDate(_ date: Date) -> Double {
+        let ti = date.timeIntervalSince1970
+        return ((ti / 86400.0) + 2440587.5)
+    }
+
+    static func sun(
+        date: Date,
+        latitude: Double,
+        longitude: Double,
+        accuracy: Double = 0.000014
+    ) -> (altitude: Double, azimuth: Double) {
+        let deg2rad = Double.pi / 180.0
+        let rad2deg = 180.0 / Double.pi
+
+        // Days since J2000 epoch
+        let n = julianDayFromDate(date) - 2451545.0
+
+        // Mean longitude of the sun
+        let L0 = (280.46646 + 0.9856474 * n).truncatingRemainder(dividingBy: 360.0)
+
+        // Mean anomaly
+        let M = (357.52911 + 0.98560028 * n).truncatingRemainder(dividingBy: 360.0)
+
+        // Ecliptic longitude of the sun
+        let C = 1.914602 - 0.004817 * n - 0.000014 * n * n
+        let sunLongitude = L0 + C * sin(M * deg2rad) + 0.020 * sin(2 * M * deg2rad)
+        let sunLatitude = 0.0  // Assume sun's ecliptic latitude is always nearly 0
+
+        // Sun's right ascension (RA) and declination (delta)
+        let tanRA = cos(sunLatitude * deg2rad) * sin(sunLongitude * deg2rad)
+        let RA = atan(tanRA / cos(sunLongitude * deg2rad))
+        let delta = asin(sin(sunLatitude * deg2rad) * cos(RA) + cos(sunLatitude * deg2rad) * sin(RA) * sin(sunLongitude * deg2rad))
+
+        // Hour angle (H)
+        let siderealTime = 280.16 + 360.9856235 * n
+        let H = (siderealTime - longitude - RA * rad2deg).truncatingRemainder(dividingBy: 360.0)
+
+        // Altitude and azimuth
+        let altitude = asin(sin(latitude * deg2rad) * sin(delta) + cos(latitude * deg2rad) * cos(delta) * cos(H * deg2rad))
+        let azimuth = atan2(-cos(delta) * sin(H * deg2rad), cos(latitude * deg2rad) * sin(delta) - sin(latitude * deg2rad) * cos(delta) * cos(H * deg2rad))
+
+        return (altitude * rad2deg, azimuth * rad2deg)
+    }
+}
