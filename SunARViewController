@@ -1,0 +1,79 @@
+import UIKit
+import ARKit
+import CoreLocation
+
+class ViewController: UIViewController, ARSCNViewDelegate, CLLocationManagerDelegate {
+
+    let arView = ARSCNView()
+    let locationManager = CLLocationManager()
+    var sunNode: SCNNode?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        // AR setup
+        arView.frame = view.bounds
+        arView.delegate = self
+        view.addSubview(arView)
+
+        // Request location
+        locationManager.delegate = self
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
+
+        // Set up AR scene
+        let configuration = ARWorldTrackingConfiguration()
+        arView.session.run(configuration)
+
+        // Initial render of the sun
+        renderSun()
+    }
+
+    func renderSun() {
+        guard let currentLocation = locationManager.location else { return }
+        let sunData = SunCalculation.sun(date: Date(), latitude: currentLocation.coordinate.latitude, longitude: currentLocation.coordinate.longitude)
+        
+        let sunPosition = positionFromAzimuthAndAltitude(azimuth: sunData.azimuth, altitude: sunData.altitude)
+
+        if sunNode == nil {
+            sunNode = SCNNode(geometry: SCNSphere(radius: 0.05))
+            sunNode?.geometry?.firstMaterial?.diffuse.contents = UIColor.yellow
+            arView.scene.rootNode.addChildNode(sunNode!)
+        }
+
+        sunNode?.position = sunPosition
+    }
+
+    func positionFromAzimuthAndAltitude(azimuth: Double, altitude: Double) -> SCNVector3 {
+        let azimuthRadians = azimuth * .pi / 180.0
+        let altitudeRadians = altitude * .pi / 180.0
+        let x = cos(altitudeRadians) * cos(azimuthRadians)
+        let y = sin(altitudeRadians)
+        let z = cos(altitudeRadians) * sin(azimuthRadians)
+        return SCNVector3(x, y, z)
+    }
+
+    func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
+        renderSun()
+    }
+    
+    func updateSunPosition() {
+        renderSun() // Calculate and update sun's position
+    }
+
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        arView.session.pause()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        // Only reset tracking if necessary; this provides a smoother experience for the user.
+        let configuration = ARWorldTrackingConfiguration()
+        arView.session.run(configuration, options: [.removeExistingAnchors])
+        
+        updateSunPosition() // Calculate and update sun's position every time the view appears
+    }
+}
